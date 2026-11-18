@@ -858,6 +858,60 @@ my %pgdump_runs = (
 			'postgres',
 		],
 	},
+	statistics_only_with_schema => {
+		dump_cmd => [
+			'pg_dump', '--no-sync',
+			'--format' => 'custom',
+			'--file' => "$tempdir/statistics_only_with_schema.dump",
+			'--statistics-only',
+			'--schema' => 'dump_test',
+			'postgres',
+		],
+		restore_cmd => [
+			'pg_restore',
+			'--format' => 'custom',
+			'--file' => "$tempdir/statistics_only_with_schema.sql",
+			'--statistics-only',
+			'--schema' => 'dump_test',
+			"$tempdir/statistics_only_with_schema.dump",
+		],
+	},
+	statistics_only_with_table => {
+		dump_cmd => [
+			'pg_dump', '--no-sync',
+			'--format' => 'custom',
+			'--file' => "$tempdir/statistics_only_with_table.dump",
+			'--statistics',
+			'postgres',
+		],
+		restore_cmd => [
+			'pg_restore',
+			'--format' => 'custom',
+			'--file' => "$tempdir/statistics_only_with_table.sql",
+			'--statistics-only',
+			'--table' => 'test_table',
+			'--schema' => 'dump_test',
+			"$tempdir/statistics_only_with_table.dump",
+		],
+	},
+	statistics_only_with_index => {
+		dump_cmd => [
+			'pg_dump', '--no-sync',
+			'--format' => 'custom',
+			'--file' => "$tempdir/statistics_only_with_index.dump",
+			'--statistics',
+			'postgres',
+		],
+		restore_cmd => [
+			'pg_restore',
+			'--format' => 'custom',
+			'--file' => "$tempdir/statistics_only_with_index.sql",
+			'--statistics-only',
+			'--index' => '"dump_test"\'s post-data index',
+			'--schema' => 'dump_test',
+			"$tempdir/statistics_only_with_index.dump",
+		],
+	},
 	no_schema => {
 		dump_cmd => [
 			'pg_dump', '--no-sync',
@@ -939,8 +993,7 @@ my %full_runs = (
 	no_table_access_method => 1,
 	pg_dumpall_dbprivs => 1,
 	pg_dumpall_exclude => 1,
-	schema_only => 1,
-	schema_only_with_statistics => 1,);
+	schema_only => 1,);
 
 # This is where the actual tests are defined.
 my %tests = (
@@ -1156,7 +1209,6 @@ my %tests = (
 			no_large_objects => 1,
 			no_owner => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 		},
 	},
 
@@ -1334,6 +1386,43 @@ my %tests = (
 		\QCREATE TABLE dump_test.test_table_nn_chld3 (\E\n
 		^\Q)\E$
 		/xm,
+		like => {
+			%full_runs, %dump_test_schema_runs, section_pre_data => 1,
+		},
+		unlike => {
+			exclude_dump_test_schema => 1,
+			only_dump_measurement => 1,
+			binary_upgrade => 1,
+		},
+	},
+
+	'CONSTRAINT NOT NULL / NO INHERIT' => {
+		create_sql => 'CREATE TABLE dump_test.test_table_nonn (
+		col1 int NOT NULL NO INHERIT,
+		col2 int);
+		CREATE TABLE dump_test.test_table_nonn_chld1 (
+		   CONSTRAINT "n n" NOT NULL col2 NO INHERIT)
+		INHERITS (dump_test.test_table_nonn); ',
+		regexp => qr/^
+			\QCREATE TABLE dump_test.test_table_nonn (\E \n^\s+
+			\Qcol1 integer NOT NULL NO INHERIT\E
+			/xm,
+		like => {
+			%full_runs, %dump_test_schema_runs,
+			section_pre_data => 1,
+			binary_upgrade => 1,
+		},
+		unlike => {
+			exclude_dump_test_schema => 1,
+			only_dump_measurement => 1,
+		},
+	},
+
+	'CONSTRAINT NOT NULL / NO INHERIT (child1)' => {
+		regexp => qr/^
+			\QCREATE TABLE dump_test.test_table_nonn_chld1 (\E \n^\s+
+			\QCONSTRAINT "n n" NOT NULL col2 NO INHERIT\E
+			/xm,
 		like => {
 			%full_runs, %dump_test_schema_runs, section_pre_data => 1,
 		},
@@ -1673,7 +1762,6 @@ my %tests = (
 		},
 		unlike => {
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 			no_large_objects => 1,
 		},
 	},
@@ -1698,7 +1786,6 @@ my %tests = (
 			binary_upgrade => 1,
 			no_large_objects => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 		},
 	},
 
@@ -1721,7 +1808,6 @@ my %tests = (
 			binary_upgrade => 1,
 			no_large_objects => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 		},
 	},
 
@@ -1888,7 +1974,6 @@ my %tests = (
 		unlike => {
 			no_large_objects => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 		},
 	},
 
@@ -2071,7 +2156,6 @@ my %tests = (
 			exclude_test_table => 1,
 			exclude_test_table_data => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 			only_dump_measurement => 1,
 		},
 	},
@@ -2097,7 +2181,6 @@ my %tests = (
 			binary_upgrade => 1,
 			exclude_dump_test_schema => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 			only_dump_measurement => 1,
 		},
 	},
@@ -2138,7 +2221,6 @@ my %tests = (
 			binary_upgrade => 1,
 			exclude_dump_test_schema => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 			only_dump_measurement => 1,
 		},
 	},
@@ -2162,7 +2244,6 @@ my %tests = (
 			binary_upgrade => 1,
 			exclude_dump_test_schema => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 			only_dump_measurement => 1,
 		},
 	},
@@ -2187,7 +2268,6 @@ my %tests = (
 			binary_upgrade => 1,
 			exclude_dump_test_schema => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 			only_dump_measurement => 1,
 		},
 	},
@@ -2211,7 +2291,6 @@ my %tests = (
 			binary_upgrade => 1,
 			exclude_dump_test_schema => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 			only_dump_measurement => 1,
 		},
 	},
@@ -2235,7 +2314,6 @@ my %tests = (
 			binary_upgrade => 1,
 			exclude_dump_test_schema => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 			only_dump_measurement => 1,
 		},
 	},
@@ -2763,6 +2841,80 @@ my %tests = (
 			\n.*^
 			\QALTER TYPE dump_test.planets ADD VALUE 'mars';\E
 			\n/xms,
+		like => { binary_upgrade => 1, },
+	},
+
+	'CREATE TYPE dump_test.rowtype_type' => {
+		create_order => 38,
+		create_sql => '
+		    CREATE TYPE dump_test.rowtype_type AS (a int, b_dropme int);
+			ALTER TYPE dump_test.rowtype_type DROP ATTRIBUTE b_dropme;
+			ALTER TYPE dump_test.rowtype_type ADD ATTRIBUTE c int;',
+		regexp => qr/^\QCREATE TYPE dump_test.rowtype_type AS (\E/m,
+		like =>
+		  { %full_runs, %dump_test_schema_runs, section_pre_data => 1, },
+		unlike => {
+			exclude_dump_test_schema => 1,
+			only_dump_measurement => 1,
+		},
+	},
+
+	'CREATE TABLE dump_test.rowtype_table' => {
+		create_order => 38,
+		create_sql => '
+		    CREATE TABLE dump_test.rowtype_table(a int, b_dropme int);
+			ALTER TABLE dump_test.rowtype_table DROP COLUMN b_dropme;
+			ALTER TABLE dump_test.rowtype_table ADD COLUMN c int;',
+		regexp => qr/^\QCREATE TABLE dump_test.rowtype_table (\E/m,
+		like =>
+		  { %full_runs, %dump_test_schema_runs, section_pre_data => 1, },
+		unlike => {
+			exclude_dump_test_schema => 1,
+			only_dump_measurement => 1,
+		},
+	},
+
+	# Iff in binary upgrade mode, dropped attributes & columns must be included
+	# in the CREATE TABLE/TYPE.
+	'dropped attribute, binary upgrade only' => {
+		regexp => qr/^
+		    \QCREATE TYPE dump_test.rowtype_type AS (\E
+			[^;]*
+			\"\.+pg\.dropped\.\d\.+\"\Q INTEGER \/* dummy *\/,\E
+			[^;]*
+			/xms,
+		like => { binary_upgrade => 1, },
+	},
+	'dropped column, binary upgrade only' => {
+		regexp => qr/^
+		    \QCREATE TABLE dump_test.rowtype_table (\E
+			[^;]*
+			\"\.+pg\.dropped\.\d\.+\"\Q INTEGER \/* dummy *\/,\E
+			[^;]*
+			/xms,
+		like => { binary_upgrade => 1, },
+	},
+
+	# Attribute and column versions are supplied ahead of the CREATE that
+	# consumes them iff in binary-upgrade mode.
+	'attribute version, binary upgrade only' => {
+		regexp => qr/^
+			\QSELECT pg_catalog.binary_upgrade_set_next_heap_pg_class_oid(\E [^;]* \Q);\E
+			(?:(?!^CREATE\b).)*?
+			\QSELECT pg_catalog.binary_upgrade_set_next_attribute_versions(\E [^;]* \Q);\E
+			(?:(?!^CREATE\b).)*?
+			^CREATE\sTYPE\sdump_test\.rowtype_type
+			/xms,
+		like => { binary_upgrade => 1, },
+	},
+	'column version, binary upgrade only' => {
+		regexp => qr/^
+			\QSELECT pg_catalog.binary_upgrade_set_next_attribute_versions(\E [^;]* \Q);\E
+			(?:(?!^CREATE\b).)*?
+			\QSELECT pg_catalog.binary_upgrade_set_next_heap_pg_class_oid(\E [^;]* \Q);\E
+			(?:(?!^CREATE\b).)*?
+			^CREATE\sTABLE\sdump_test\.rowtype_table
+			/xms,
 		like => { binary_upgrade => 1, },
 	},
 
@@ -3721,7 +3873,6 @@ my %tests = (
 			binary_upgrade => 1,
 			exclude_dump_test_schema => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 		},
 	},
 
@@ -3894,7 +4045,6 @@ my %tests = (
 		unlike => {
 			binary_upgrade => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 			exclude_measurement => 1,
 			only_dump_test_schema => 1,
 			test_schema_plus_large_objects => 1,
@@ -4205,6 +4355,31 @@ my %tests = (
 		regexp => qr/^
 			\QALTER INDEX dump_test.index_with_stats ALTER COLUMN 1 SET STATISTICS 400;\E\n
 			\QALTER INDEX dump_test.index_with_stats ALTER COLUMN 3 SET STATISTICS 500;\E\n
+			/xms,
+		like =>
+		  { %full_runs, %dump_test_schema_runs, section_post_data => 1, },
+		unlike => {
+			exclude_dump_test_schema => 1,
+			only_dump_measurement => 1,
+		},
+	},
+
+	'CREATE TABLE table_with_constraint_stats' => {
+		create_order => 98,
+		create_sql => 'CREATE TABLE dump_test.table_constraint_stats (
+						   col1 int,
+						   col2 int);
+						 ALTER TABLE dump_test.table_constraint_stats
+						   ADD CONSTRAINT ex_with_stats
+						   EXCLUDE USING btree ((col1 + 1) WITH =,
+							 col1 WITH =, (col2 + 1) WITH =);
+						 ALTER INDEX dump_test.ex_with_stats
+						   ALTER COLUMN 1 SET STATISTICS 100;
+						 ALTER INDEX dump_test.ex_with_stats
+						   ALTER COLUMN 3 SET STATISTICS 200;',
+		regexp => qr/^
+			\QALTER INDEX dump_test.ex_with_stats ALTER COLUMN 1 SET STATISTICS 100;\E\n
+			\QALTER INDEX dump_test.ex_with_stats ALTER COLUMN 3 SET STATISTICS 200;\E\n
 			/xms,
 		like =>
 		  { %full_runs, %dump_test_schema_runs, section_post_data => 1, },
@@ -4777,7 +4952,6 @@ my %tests = (
 			no_large_objects => 1,
 			no_privs => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 		},
 	},
 
@@ -4896,7 +5070,6 @@ my %tests = (
 			binary_upgrade => 1,
 			exclude_dump_test_schema => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 			only_dump_measurement => 1,
 		},
 	},
@@ -4913,7 +5086,6 @@ my %tests = (
 			binary_upgrade => 1,
 			exclude_dump_test_schema => 1,
 			schema_only => 1,
-			schema_only_with_statistics => 1,
 			only_dump_measurement => 1,
 		},
 	},
@@ -5112,7 +5284,8 @@ my %tests = (
 			no_schema => 1,
 			section_post_data => 1,
 			statistics_only => 1,
-			schema_only_with_statistics => 1,
+			statistics_only_with_schema => 1,
+			statistics_only_with_index => 1,
 		},
 		unlike => {
 			exclude_dump_test_schema => 1,
@@ -5141,7 +5314,9 @@ my %tests = (
 			section_data => 1,
 			section_post_data => 1,
 			statistics_only => 1,
-			schema_only_with_statistics => 1,
+			statistics_only_with_schema => 1,
+			statistics_only_with_index => 1,
+			statistics_only_with_table => 1,
 		},
 		unlike => {
 			no_statistics => 1,

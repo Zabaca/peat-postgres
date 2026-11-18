@@ -522,6 +522,9 @@ loop_top:
 			prf_bucket++;
 		}
 
+		/* call vacuum_delay_point while not holding any buffer lock */
+		vacuum_delay_point(false);
+
 		/* Get address of bucket's start page */
 		bucket_blkno = BUCKET_TO_BLKNO(cachedmetap, cur_bucket);
 
@@ -734,8 +737,6 @@ hashbucketcleanup(Relation rel, Bucket cur_bucket, Buffer bucket_buf,
 		int			ndeletable = 0;
 		bool		retain_pin = false;
 		bool		clear_dead_marking = false;
-
-		vacuum_delay_point(false);
 
 		page = BufferGetPage(buf);
 		opaque = HashPageGetOpaque(page);

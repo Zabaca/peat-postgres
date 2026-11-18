@@ -1479,8 +1479,8 @@ table_tuple_delete(Relation rel, ItemPointer tid, CommandId cid,
  * Output parameters:
  *	tmfd - filled in failure cases (see below)
  *	lockmode - filled with lock mode acquired on tuple
- *  update_indexes - in success cases this is set to true if new index entries
- *		are required for this tuple
+ *	update_indexes - in success cases this is set if new index entries
+ *		are required for this tuple; see TU_UpdateIndexes
  *
  * Normal, successful return value is TM_Ok, which means we did actually
  * update it.  Failure return codes are TM_SelfModified, TM_Updated, and
@@ -1884,6 +1884,12 @@ table_relation_fetch_toast_slice(Relation toastrel, Oid valueid,
 								 int32 attrsize, int32 sliceoffset,
 								 int32 slicelength, struct varlena *result)
 {
+	if (attrsize < 0 || sliceoffset < 0 || slicelength < 0)
+		elog(ERROR, "invalid toast slice: offset %d, length %d, value size %d",
+			 sliceoffset, slicelength, attrsize);
+	if (slicelength > attrsize - sliceoffset)
+		elog(ERROR, "slice length is too big");
+
 	toastrel->rd_tableam->relation_fetch_toast_slice(toastrel, valueid,
 													 attrsize,
 													 sliceoffset, slicelength,
