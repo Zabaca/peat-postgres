@@ -258,7 +258,13 @@ XLogReleasePreviousRecord(XLogReaderState *state)
 	if (!state->record)
 		return InvalidXLogRecPtr;
 
+/*
+ * NEON: skip an invalid record on request (pg_waldump --ignore). The check that
+ * found it may have queued its error (report_invalid_record() sets
+ * errormsg_deferred); forget it, or the next read stops with that stale error.
+ */
 #define SKIP_INVALID_RECORD(rec_ptr) do { \
+										XLogReaderResetError(state); \
 										rec_ptr = MAXALIGN(rec_ptr + 1); \
 										if (rec_ptr % XLOG_BLCKSZ <= MAXALIGN(1)) \
 											goto restart; \
@@ -1119,9 +1125,13 @@ ReadPageInternal(XLogReaderState *state, XLogRecPtr pageptr, int reqLen)
 		Assert(readLen == XLOG_BLCKSZ);
 
 		if (!XLogReaderValidatePageHeader(state, targetSegmentPtr,
-										  state->readBuf) &&
-			!state->skip_page_validation)
-			goto err;
+										  state->readBuf))
+		{
+			if (!state->skip_page_validation)
+				goto err;
+			/* NEON: a page check skipped on request must not stay queued as an error */
+			XLogReaderResetError(state);
+		}
 	}
 
 	/*
@@ -1161,9 +1171,13 @@ ReadPageInternal(XLogReaderState *state, XLogRecPtr pageptr, int reqLen)
 	/*
 	 * Now that we know we have the full header, validate it.
 	 */
-	if (!XLogReaderValidatePageHeader(state, pageptr, (char *) hdr) &&
-		!state->skip_page_validation)
-		goto err;
+	if (!XLogReaderValidatePageHeader(state, pageptr, (char *) hdr))
+	{
+		if (!state->skip_page_validation)
+			goto err;
+		/* NEON: a page check skipped on request must not stay queued as an error */
+		XLogReaderResetError(state);
+	}
 
 	/* update read state information */
 	state->seg.ws_segno = targetSegNo;
