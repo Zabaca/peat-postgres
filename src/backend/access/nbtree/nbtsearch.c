@@ -2923,7 +2923,7 @@ _bt_endpoint(IndexScanDesc scan, ScanDirection dir)
 	Page		page;
 	BTPageOpaque opaque;
 	OffsetNumber start;
-	BlockNumber	parent;
+	BlockNumber	parent = P_NONE;
 
 	Assert(!BTScanPosIsValid(so->currPos));
 	Assert(!so->needPrimScan);
@@ -2945,7 +2945,8 @@ _bt_endpoint(IndexScanDesc scan, ScanDirection dir)
 		{
 			PredicateLockRelation(rel, scan->xs_snapshot);
 			so->currPos.buf = _bt_get_endpoint(rel, 0,
-											   ScanDirectionIsBackward(dir));
+											   ScanDirectionIsBackward(dir),
+											   &parent);
 		}
 
 		if (!BufferIsValid(so->currPos.buf))
