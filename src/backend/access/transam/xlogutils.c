@@ -340,6 +340,10 @@ XLogFlushBufferForRedoIfInit(XLogReaderState *record, uint8 block_id,
 
 	Assert(BufferIsValid(buffer));
 
+	/* NEON: the WAL redo process has no WAL to flush to and keeps no files */
+	if (am_wal_redo_postgres)
+		return;
+
 	XLogRecGetBlockTag(record, block_id, NULL, &forknum, NULL);
 	if (forknum == INIT_FORKNUM)
 		FlushOneBuffer(buffer);
