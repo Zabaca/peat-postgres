@@ -18,6 +18,7 @@
 #include "access/hash.h"
 #include "access/hash_xlog.h"
 #include "access/xlogutils.h"
+#include "miscadmin.h"
 #include "storage/standby.h"
 
 /*
@@ -40,7 +41,8 @@ hash_xlog_init_meta_page(XLogReaderState *record)
 	page = BufferGetPage(metabuf);
 	PageSetLSN(page, lsn);
 	MarkBufferDirty(metabuf);
-	XLogFlushBufferForRedoIfInit(record, 0, metabuf);
+	if (!am_wal_redo_postgres)
+		XLogFlushBufferForRedoIfInit(record, 0, metabuf);
 
 	/* all done */
 	UnlockReleaseBuffer(metabuf);
@@ -68,7 +70,8 @@ hash_xlog_init_bitmap_page(XLogReaderState *record)
 	_hash_initbitmapbuffer(bitmapbuf, xlrec->bmsize, true);
 	PageSetLSN(BufferGetPage(bitmapbuf), lsn);
 	MarkBufferDirty(bitmapbuf);
-	XLogFlushBufferForRedoIfInit(record, 0, bitmapbuf);
+	if (!am_wal_redo_postgres)
+		XLogFlushBufferForRedoIfInit(record, 0, bitmapbuf);
 	UnlockReleaseBuffer(bitmapbuf);
 
 	/* add the new bitmap page to the metapage's list of bitmaps */
@@ -89,7 +92,8 @@ hash_xlog_init_bitmap_page(XLogReaderState *record)
 
 		PageSetLSN(page, lsn);
 		MarkBufferDirty(metabuf);
-		XLogFlushBufferForRedoIfInit(record, 1, metabuf);
+		if (!am_wal_redo_postgres)
+			XLogFlushBufferForRedoIfInit(record, 1, metabuf);
 	}
 	if (BufferIsValid(metabuf))
 		UnlockReleaseBuffer(metabuf);

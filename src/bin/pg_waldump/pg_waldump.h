@@ -31,6 +31,9 @@ typedef struct XLogDumpPrivate
 	bool		endptr_reached;
 	bool		decoding_started;
 
+	/* NEON: dump the records of a single file (--file), by offset */
+	char	   *input_filename;
+
 	/* Fields required to read WAL from archive */
 	char	   *archive_dir;
 	char	   *archive_name;	/* Tar archive filename */

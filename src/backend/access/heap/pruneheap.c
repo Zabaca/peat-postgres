@@ -2790,4 +2790,14 @@ log_heap_prune_and_freeze(Relation relation, Buffer buffer,
 		Assert(BufferIsDirty(buffer));
 		PageSetLSN(heap_page, recptr);
 	}
+	else
+	{
+		/*
+		 * NEON: the heap page is stamped even without an FPI. Neon keeps no
+		 * torn-page protection, and the page LSN must match the one the WAL
+		 * redo process gives the page (see heap_xlog_prune_freeze()),
+		 * otherwise a prefetched page is rejected.
+		 */
+		PageSetLSN(heap_page, recptr);
+	}
 }

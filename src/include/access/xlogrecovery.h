@@ -106,6 +106,7 @@ typedef struct XLogRecoveryCtlData
 	XLogRecPtr	lastReplayedReadRecPtr; /* start position */
 	XLogRecPtr	lastReplayedEndRecPtr;	/* end+1 position */
 	TimeLineID	lastReplayedTLI;	/* timeline */
+	ConditionVariable replayProgressCV; /* NEON: CV for waiters */
 
 	/*
 	 * When we're currently replaying a record, ie. in a redo function,
@@ -140,6 +141,7 @@ extern PGDLLIMPORT char *PrimarySlotName;
 extern PGDLLIMPORT char *recoveryRestoreCommand;
 extern PGDLLIMPORT char *recoveryEndCommand;
 extern PGDLLIMPORT char *archiveCleanupCommand;
+extern PGDLLIMPORT bool allowReplicaMisconfig;
 
 /* indirectly set via GUC system */
 extern PGDLLIMPORT TransactionId recoveryTargetXid;
@@ -216,6 +218,7 @@ extern void ShutdownWalRecovery(void);
 extern void RemovePromoteSignalFiles(void);
 
 extern bool HotStandbyActive(void);
+extern void XLogWaitForReplayOf(XLogRecPtr redoEndRecPtr);
 extern XLogRecPtr GetXLogReplayRecPtr(TimeLineID *replayTLI);
 extern RecoveryPauseState GetRecoveryPauseState(void);
 extern void SetRecoveryPause(bool recoveryPause);
@@ -236,5 +239,7 @@ extern void XLogRequestWalReceiverReply(void);
 extern void RecoveryRequiresIntParameter(const char *param_name, int currValue, int minValue);
 
 extern void xlog_outdesc(StringInfo buf, XLogReaderState *record);
+
+extern void XLogUpdateWalBuffers(char* data, XLogRecPtr start, size_t len);
 
 #endif							/* XLOGRECOVERY_H */
