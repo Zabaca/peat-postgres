@@ -3554,20 +3554,16 @@ UnpinBufferNoOwner(BufferDesc *buf)
 
 		if (neon_test_evict && !InRecovery)
 		{
-			buf_state = LockBufHdr(buf);
+			uint64		buf_state = LockBufHdr(buf);
+
 			if ((buf_state & BM_VALID) && BUF_STATE_GET_REFCOUNT(buf_state) == 0)
 			{
 				ReservePrivateRefCountEntry();
+				ResourceOwnerEnlarge(CurrentResourceOwner);
 				PinBuffer_Locked(buf);
 				if (buf_state & BM_DIRTY)
-				{
-					if (LWLockConditionalAcquire(BufferDescriptorGetContentLock(buf),
-												 LW_SHARED))
-					{
-						FlushOneBuffer(b);
-						LWLockRelease(BufferDescriptorGetContentLock(buf));
-					}
-				}
+					FlushUnlockedBuffer(buf, NULL, IOOBJECT_RELATION,
+										IOCONTEXT_NORMAL);
 
 				/*
 				 * Try to invalidate the page. This can fail if the page is
@@ -3577,7 +3573,7 @@ UnpinBufferNoOwner(BufferDesc *buf)
 				UnpinBuffer(buf);
 			}
 			else
-				UnlockBufHdr(buf, buf_state);
+				UnlockBufHdr(buf);
 		}
 	}
 }
@@ -4619,7 +4615,7 @@ FlushBuffer(BufferDesc *buf, SMgrRelation reln, IOObject io_object,
 		else
 		{
 			Assert(io_object == IOOBJECT_RELATION);
-			if (pg_atomic_read_u32(&buf->state) & BM_PERMANENT)
+			if (pg_atomic_read_u64(&buf->state) & BM_PERMANENT)
 				relpersistence = RELPERSISTENCE_PERMANENT;
 			else
 				relpersistence = RELPERSISTENCE_UNLOGGED;

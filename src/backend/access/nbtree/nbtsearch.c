@@ -1644,7 +1644,13 @@ _bt_first(IndexScanDesc scan, ScanDirection dir)
 	}
 
 	/* don't need to keep the stack around... */
-	_bt_freestack(stack);
+	while (stack != NULL)
+	{
+		BTStack		parent = stack->bts_parent;
+
+		pfree(stack);
+		stack = parent;
+	}
 
 	if (!BufferIsValid(so->currPos.buf))
 	{

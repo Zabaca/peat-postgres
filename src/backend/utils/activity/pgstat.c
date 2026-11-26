@@ -1803,6 +1803,11 @@ pgstat_write_statsfile(void)
 		unlink(tmpfile);
 		status = STATS_DISCARD;
 	}
+	else if (XLogInsertAllowed() && neon_pgstat_file_size_limit != 0)
+	{
+		/* NEON: keep the statistics file in WAL */
+		wallog_file(statfile, (uint64_t) neon_pgstat_file_size_limit * 1024);
+	}
 
 	/* Finish callbacks, if required */
 	for (PgStat_Kind kind = PGSTAT_KIND_MIN; kind <= PGSTAT_KIND_MAX; kind++)
@@ -1811,10 +1816,6 @@ pgstat_write_statsfile(void)
 
 		if (kind_info && kind_info->finish)
 			kind_info->finish(status);
-	}
-	else if (XLogInsertAllowed() && neon_pgstat_file_size_limit != 0)
-	{
-		wallog_file(statfile, (uint64_t) neon_pgstat_file_size_limit * 1024);
 	}
 }
 
