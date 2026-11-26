@@ -270,9 +270,9 @@ BootstrapModeMain(int argc, char *argv[], bool check_only)
 			{
 				char* endptr;
 #ifdef HAVE_STRTOULL
-				predefined_sysidentifier = strtoull(optarg, &endptr, 10);
+				predefined_sysidentifier = strtoull(optctx.optarg, &endptr, 10);
 #else
-				predefined_sysidentifier = strtoul(optarg, &endptr, 10);
+				predefined_sysidentifier = strtoul(optctx.optarg, &endptr, 10);
 #endif
 				break;
 			}
