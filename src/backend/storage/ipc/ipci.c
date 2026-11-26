@@ -171,8 +171,17 @@ RegisterBuiltinShmemCallbacks(void)
 	 * Call RegisterShmemCallbacks(...) on each subsystem listed in
 	 * subsystemlist.h
 	 */
+	/*
+	 * NEON: the WAL redo process runs in a bare directory without pg_notify,
+	 * which the LISTEN/NOTIFY queue's initialization opens, and it never
+	 * notifies, so that subsystem is left out there.
+	 */
 #define PG_SHMEM_SUBSYSTEM(subsystem_callbacks) \
-	RegisterShmemCallbacks(&(subsystem_callbacks));
+	do { \
+		if (!(am_wal_redo_postgres && \
+			  &(subsystem_callbacks) == &AsyncShmemCallbacks)) \
+			RegisterShmemCallbacks(&(subsystem_callbacks)); \
+	} while (0);
 
 #include "storage/subsystemlist.h"
 
